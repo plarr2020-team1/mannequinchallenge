@@ -11,10 +11,10 @@ opt = TrainOptions().parse()  # set CUDA_VISIBLE_DEVICES before import torch
 # Add the names of frames to txt file
 item_list = glob.glob(opt.data_dir + "*.png")
 
-with open("test_data/test_plarr_video_list.txt", "w") as outfile:
+with open("mannequinchallenge/test_data/test_plarr_video_list.txt", "w") as outfile:
     outfile.write("\n".join(sorted(item_list)))
 
-video_list = 'test_data/test_plarr_video_list.txt'
+video_list = 'mannequinchallenge/test_data/test_plarr_video_list.txt'
 
 eval_num_threads = 2
 video_data_loader = aligned_data_loader.DAVISDataLoader(video_list, BATCH_SIZE)
