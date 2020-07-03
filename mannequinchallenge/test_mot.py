@@ -2,10 +2,18 @@ import torch
 from options.train_options import TrainOptions
 from loaders import aligned_data_loader
 from models import pix2pix_model
+import glob
 
 BATCH_SIZE = 1
 
 opt = TrainOptions().parse()  # set CUDA_VISIBLE_DEVICES before import torch
+
+# Add the names of frames to txt file
+video_dir = 'test_data/MOT/'
+item_list = glob.glob(video_dir + "*.png")
+
+with open("test_data/test_mot_video_list.txt", "w") as outfile:
+    outfile.write("\n".join(sorted(item_list)))
 
 video_list = 'test_data/test_mot_video_list.txt'
 
