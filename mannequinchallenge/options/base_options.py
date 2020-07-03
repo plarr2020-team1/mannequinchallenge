@@ -34,6 +34,8 @@ class BaseOptions():
                                  help='which epoch to load? set to latest to use latest cached model')
         self.parser.add_argument('--human_data_term', type=int, default=0,
                                  help='which epoch to load? set to latest to use latest cached model')
+        self.parser.add_argument('--data_dir', type=str, default='../samples/',
+                                 help='directory that contains sequences of images')
 
         self.parser.add_argument(
             '--batchSize', type=int, default=8, help='input batch size')
