@@ -46,9 +46,3 @@ for i, data in enumerate(video_dataset):
     stacked_img = data[0]
     targets = data[1]
     model.run_and_save_DAVIS(stacked_img, targets, save_path)
-
-def main():
-
-
-if __name__ == '__main__':
-    main()
