@@ -657,7 +657,7 @@ class Pix2PixModel(base_model.BaseModel):
             disparity = 1. / pred_d_ref
             disparity = disparity / np.max(disparity)
             disparity = np.tile(np.expand_dims(disparity, axis=-1), (1, 1, 3))
-            saved_imgs = np.concatenate((saved_img, disparity), axis=1)
+            saved_imgs = disparity
             saved_imgs = (saved_imgs*255).astype(np.uint8)
 
             imsave(output_path, saved_imgs)
