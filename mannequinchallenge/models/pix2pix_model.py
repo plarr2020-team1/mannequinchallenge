@@ -24,6 +24,8 @@ import h5py
 import os.path
 from skimage.io import imsave
 from models import hourglass
+from PIL import Image
+import matplotlib as mpl
 
 import torchvision.utils as vutils
 
@@ -624,6 +626,36 @@ class Pix2PixModel(base_model.BaseModel):
                 '/prediction/original_mvs_depth', data=original_mvs_depth)
 
             hdf5_file_write.close()
+
+    def run_PLARR(self, input_):
+        assert (self.num_input == 3)
+        input_imgs = autograd.Variable(input_.cuda(), requires_grad=False) if torch.cuda.is_available() else \
+            autograd.Variable(input_, requires_grad=False)
+
+        stack_inputs = input_imgs.unsqueeze(0)
+
+        prediction_d, pred_confidence = self.netG.forward(stack_inputs)
+        pred_log_d = prediction_d.squeeze(1)
+        pred_d = torch.exp(pred_log_d)
+
+        pred_d_ref = pred_d.data[0, :, :].cpu().numpy()
+
+        disparity = 1. / pred_d_ref
+        disparity = disparity / np.max(disparity)
+        disparity = np.tile(np.expand_dims(disparity, axis=-1), (1, 1, 3))
+        saved_imgs = disparity
+
+        # Saving colormapped depth image
+        disp_resized_np = saved_imgs
+        vmax = np.percentile(disp_resized_np, 95)
+        normalizer = mpl.colors.Normalize(vmin=disp_resized_np.min(), vmax=vmax)
+        mapper = mpl.cm.ScalarMappable(norm=normalizer, cmap='magma')
+        colormapped_im = (mapper.to_rgba(disp_resized_np)[:, :, :3] * 255).astype(
+            np.uint8)
+
+        disp_img = Image.fromarray(colormapped_im)
+
+        return saved_imgs, disp_img
 
     def run_and_save_DAVIS(self, input_, targets, save_path):
         assert (self.num_input == 3)
