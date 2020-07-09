@@ -280,3 +280,30 @@ class DAVISImageFolder(data.Dataset):
 
     def __len__(self):
         return len(self.img_list)
+
+class PLARRImageFolder(data.Dataset):
+
+    def __init__(self, img):
+        self.img = img
+
+        self.resized_height = 288
+        self.resized_width = 512
+
+        self.use_pp = True
+
+    def load_img(self):
+        img = np.float32(self.img)/255.0
+        img = transform.resize(img, (self.resized_height, self.resized_width))
+
+        return img
+
+    def __getitem__(self, index):
+        img = self.load_img()
+
+        final_img = torch.from_numpy(np.ascontiguousarray(
+            img).transpose(2, 0, 1)).contiguous().float()
+
+        return final_img
+
+    def __len__(self):
+        return 1

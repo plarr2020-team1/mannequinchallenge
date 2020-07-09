@@ -139,9 +139,12 @@ class LaplacianLayer(nn.Module):
     def __init__(self):
         super(LaplacianLayer, self).__init__()
         w_nom = torch.FloatTensor([[0, -1, 0], [-1, 4, -1],
-                                   [0, -1, 0]]).view(1, 1, 3, 3).cuda()
+                                   [0, -1, 0]]).view(1, 1, 3, 3)
         w_den = torch.FloatTensor([[0, 1, 0], [1, 4, 1],
-                                   [0, 1, 0]]).view(1, 1, 3, 3).cuda()
+                                   [0, 1, 0]]).view(1, 1, 3, 3)
+        if torch.cuda.is_available():
+            w_nom = w_nom.cuda()
+            w_den = w_den.cuda()
         self.register_buffer('w_nom', w_nom)
         self.register_buffer('w_den', w_den)
 
@@ -397,9 +400,13 @@ class JointLoss(nn.Module):
         return torch.sum(l1_rel_error) / num_valid_pixels
 
     def compute_si_rmse(self, pred_log_d, targets):
-        gt_mask = targets['gt_mask'].cuda()
-        log_d_gt = torch.log(targets['depth_gt'].cuda())
-        env_mask = targets['env_mask'].cuda()
+        gt_mask = targets['gt_mask']
+        log_d_gt = torch.log(targets['depth_gt'])
+        env_mask = targets['env_mask']
+        if torch.cuda.is_available():
+            gt_mask = gt_mask.cuda()
+            log_d_gt = log_d_gt.cuda()
+            env_mask = env_mask.cuda()
 
         human_gt_mask = (1.0 - env_mask) * gt_mask
         env_gt_mask = env_mask * gt_mask
@@ -539,16 +546,18 @@ class JointLoss(nn.Module):
         input_3 = input_2[:, :, ::2, ::2]
         input_4 = input_3[:, :, ::2, ::2]
 
-        d_gt_0 = autograd.Variable(targets['depth_gt'].cuda(), requires_grad=False)
+        d_gt_0 = autograd.Variable(targets['depth_gt'].cuda(), requires_grad=False) if torch.cuda.is_available() else \
+            autograd.Variable(targets['depth_gt'], requires_grad=False)
         log_d_gt_0 = torch.log(d_gt_0)
         log_d_gt_1 = log_d_gt_0[:, ::2, ::2]
         log_d_gt_2 = log_d_gt_1[:, ::2, ::2]
         log_d_gt_3 = log_d_gt_2[:, ::2, ::2]
         log_d_gt_4 = log_d_gt_3[:, ::2, ::2]
 
-        gt_mask = autograd.Variable(targets['gt_mask'].cuda(), requires_grad=False)
-        human_mask = 1.0 - \
-            autograd.Variable(targets['env_mask'].cuda(), requires_grad=False)
+        gt_mask = autograd.Variable(targets['gt_mask'].cuda(), requires_grad=False) if torch.cuda.is_available() else \
+            autograd.Variable(targets['gt_mask'], requires_grad=False)
+        human_mask = 1.0 - autograd.Variable(targets['env_mask'].cuda(), requires_grad=False) if \
+            torch.cuda.is_available() else 1.0 - autograd.Variable(targets['env_mask'], requires_grad=False)
         human_gt_mask = human_mask * gt_mask
 
         mask_0 = gt_mask

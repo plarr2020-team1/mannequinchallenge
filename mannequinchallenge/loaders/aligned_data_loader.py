@@ -15,6 +15,23 @@
 import torch.utils.data
 from loaders import image_folder
 
+class PLARRDataLoader():
+    def __init__(self, img, _batch_size):
+        dataset = image_folder.PLARRImageFolder(img)
+        self.data_loader = torch.utils.data.DataLoader(dataset,
+                                                       batch_size=_batch_size,
+                                                       shuffle=False,
+                                                       num_workers=int(1))
+        self.dataset = dataset
+
+    def load_data(self):
+        return self.data_loader
+
+    def name(self):
+        return 'PLARRDataLoader'
+
+    def __len__(self):
+        return len(self.dataset)
 
 class DAVISDataLoader():
     def __init__(self, list_path, _batch_size):

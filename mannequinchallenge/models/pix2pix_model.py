@@ -24,6 +24,8 @@ import h5py
 import os.path
 from skimage.io import imsave
 from models import hourglass
+from PIL import Image
+import matplotlib as mpl
 
 import torchvision.utils as vutils
 
@@ -105,8 +107,10 @@ class Pix2PixModel(base_model.BaseModel):
 
                 new_model.load_state_dict(model_parameters)
 
+            if torch.cuda.is_available():
+                new_model = new_model.cuda()
             new_model = torch.nn.parallel.DataParallel(
-                new_model.cuda(), device_ids=range(torch.cuda.device_count()))
+                new_model, device_ids=range(torch.cuda.device_count()))
 
             self.netG = new_model
 
@@ -134,33 +138,41 @@ class Pix2PixModel(base_model.BaseModel):
         self.input = stack_imgs
         self.targets = targets
 
+    def prep_input_target(self, input, targets):
+        input_ = input.cuda() if torch.cuda.is_available() else input
+        related_keys = ['env_mask', 'keypoints_img', 'input_log_depth', 'input_confidence']
+        related_targets = {k: v for k, v in targets.items() if k in related_keys}
+        targets_ = {k: v.cuda() if torch.cuda.is_available() else v for k, v in related_targets.items()}
+        return input_, targets_
+
     def forward(self):
 
         # run first network
-        self.input_images = autograd.Variable(self.input.cuda(), requires_grad=False)
+        input_,  targets_ = self.prep_input_target(self.input, self.targets)
+        self.input_images = autograd.Variable(input_, requires_grad=False)
         human_mask = 1.0 - autograd.Variable(
-            self.targets['env_mask'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['env_mask'], requires_grad=False).unsqueeze(1)
         keypoints_img = autograd.Variable(
-            self.targets['keypoints_img'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['keypoints_img'], requires_grad=False).unsqueeze(1)
 
         # stack inputs
         stack_inputs = None
 
         if self.num_input == 7:
             input_log_depth = autograd.Variable(
-                self.targets['input_log_depth'].cuda(),
+                targets_['input_log_depth'],
                 requires_grad=False).unsqueeze(1)
             input_confidence = autograd.Variable(
-                self.targets['input_confidence'].cuda(),
+                targets_['input_confidence'],
                 requires_grad=False).unsqueeze(1)
             stack_inputs = torch.cat((self.input_images, human_mask, keypoints_img,
                                       input_log_depth, input_confidence), 1)
         elif self.num_input == 6:
             input_log_depth = autograd.Variable(
-                self.targets['input_log_depth'].cuda(),
+                targets_['input_log_depth'],
                 requires_grad=False).unsqueeze(1)
             input_confidence = autograd.Variable(
-                self.targets['input_confidence'].cuda(),
+                targets_['input_confidence'],
                 requires_grad=False).unsqueeze(1)
             stack_inputs = torch.cat(
                 (self.input_images, human_mask, input_log_depth, input_confidence), 1)
@@ -266,25 +278,26 @@ class Pix2PixModel(base_model.BaseModel):
 
     def evlaute_M_error(self, input_, targets, n_iter, write_to_summary):
         # switch to evaluation mode
-        input_imgs = autograd.Variable(input_.cuda(), requires_grad=False)
+        input_imgs, targets_ = self.prep_input_target(input_, targets)
+        input_imgs = autograd.Variable(input_imgs, requires_grad=False)
         # stack inputs
         human_mask = 1.0 - autograd.Variable(
-            targets['env_mask'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['env_mask'], requires_grad=False).unsqueeze(1)
         keypoints_img = autograd.Variable(
-            targets['keypoints_img'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['keypoints_img'], requires_grad=False).unsqueeze(1)
 
         if self.num_input == 7:
             input_log_depth = autograd.Variable(
-                targets['input_log_depth'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_log_depth'], requires_grad=False).unsqueeze(1)
             input_confidence = autograd.Variable(
-                targets['input_confidence'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_confidence'], requires_grad=False).unsqueeze(1)
             stack_inputs = torch.cat((input_imgs, human_mask, keypoints_img,
                                       input_log_depth, input_confidence), 1)
         elif self.num_input == 6:
             input_log_depth = autograd.Variable(
-                targets['input_log_depth'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_log_depth'], requires_grad=False).unsqueeze(1)
             input_confidence = autograd.Variable(
-                targets['input_confidence'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_confidence'], requires_grad=False).unsqueeze(1)
             stack_inputs = torch.cat(
                 (input_imgs, human_mask, input_log_depth, input_confidence), 1)
         elif self.num_input == 3:
@@ -310,24 +323,25 @@ class Pix2PixModel(base_model.BaseModel):
         return sc_inv_errors
 
     def eval_save_tum_img(self, input_, targets, save_path):
-        input_imgs = autograd.Variable(input_.cuda())
+        input_imgs, targets_ = self.prep_input_target(input_, targets)
+        input_imgs = autograd.Variable(input_imgs)
         human_mask = 1.0 - autograd.Variable(
-            targets['env_mask'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['env_mask'], requires_grad=False).unsqueeze(1)
         keypoints_img = autograd.Variable(
-            targets['keypoints_img'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['keypoints_img'], requires_grad=False).unsqueeze(1)
 
         if self.num_input == 7:
             input_log_depth = autograd.Variable(
-                targets['input_log_depth'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_log_depth'], requires_grad=False).unsqueeze(1)
             input_confidence = autograd.Variable(
-                targets['input_confidence'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_confidence'], requires_grad=False).unsqueeze(1)
             stack_inputs = torch.cat((input_imgs, human_mask, keypoints_img,
                                       input_log_depth, input_confidence), 1)
         elif self.num_input == 6:
             input_log_depth = autograd.Variable(
-                targets['input_log_depth'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_log_depth'], requires_grad=False).unsqueeze(1)
             input_confidence = autograd.Variable(
-                targets['input_confidence'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_confidence'], requires_grad=False).unsqueeze(1)
             stack_inputs = torch.cat(
                 (input_imgs, human_mask, input_log_depth, input_confidence), 1)
         elif self.num_input == 3:
@@ -383,24 +397,25 @@ class Pix2PixModel(base_model.BaseModel):
                 '/prediction/human_mask', data=human_mask, dtype='float32')
 
     def evaluate_tum_error(self, input_, targets, n_iter, write_to_summary):
-        input_imgs = autograd.Variable(input_.cuda(), requires_grad=False)
+        input_imgs, targets_ = self.prep_input_target(input_, targets)
+        input_imgs = autograd.Variable(input_imgs, requires_grad=False)
         human_mask = 1.0 - autograd.Variable(
-            targets['env_mask'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['env_mask'], requires_grad=False).unsqueeze(1)
         keypoints_img = autograd.Variable(
-            targets['keypoints_img'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['keypoints_img'], requires_grad=False).unsqueeze(1)
 
         if self.num_input == 7:
             input_log_depth = autograd.Variable(
-                targets['input_log_depth'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_log_depth'], requires_grad=False).unsqueeze(1)
             input_confidence = autograd.Variable(
-                targets['input_confidence'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_confidence'], requires_grad=False).unsqueeze(1)
             stack_inputs = torch.cat((input_imgs, human_mask, keypoints_img,
                                       input_log_depth, input_confidence), 1)
         elif self.num_input == 6:
             input_log_depth = autograd.Variable(
-                targets['input_log_depth'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_log_depth'], requires_grad=False).unsqueeze(1)
             input_confidence = autograd.Variable(
-                targets['input_confidence'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_confidence'], requires_grad=False).unsqueeze(1)
             stack_inputs = torch.cat(
                 (input_imgs, human_mask, input_log_depth, input_confidence), 1)
         elif self.num_input == 3:
@@ -432,26 +447,27 @@ class Pix2PixModel(base_model.BaseModel):
         return sc_inv_errors, l1_rel_full, RMSE_full
 
     def eval_save_img(self, input_, targets, save_path):
-        input_imgs = autograd.Variable(input_.cuda(), requires_grad=False)
+        input_imgs, targets_ = self.prep_input_target(input_, targets)
+        input_imgs = autograd.Variable(input_imgs, requires_grad=False)
         human_mask = 1.0 - autograd.Variable(
-            targets['env_mask'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['env_mask'], requires_grad=False).unsqueeze(1)
         keypoints_img = autograd.Variable(
-            targets['keypoints_img'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['keypoints_img'], requires_grad=False).unsqueeze(1)
 
         if self.num_input == 7:
             input_log_depth = autograd.Variable(
-                targets['input_log_depth'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_log_depth'], requires_grad=False).unsqueeze(1)
             input_confidence = autograd.Variable(
-                targets['input_confidence'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_confidence'], requires_grad=False).unsqueeze(1)
             stack_inputs = torch.cat((input_imgs, human_mask, keypoints_img,
                                       input_log_depth, input_confidence), 1)
         elif self.num_input == 6:
             human_mask = 1.0 - autograd.Variable(
-                targets['env_mask'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['env_mask'], requires_grad=False).unsqueeze(1)
             input_log_depth = autograd.Variable(
-                targets['input_log_depth'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_log_depth'], requires_grad=False).unsqueeze(1)
             input_confidence = autograd.Variable(
-                targets['input_confidence'].cuda(), requires_grad=False).unsqueeze(1)
+                targets_['input_confidence'], requires_grad=False).unsqueeze(1)
             stack_inputs = torch.cat(
                 (input_imgs, human_mask, input_log_depth, input_confidence), 1)
         elif self.num_input == 3:
@@ -520,22 +536,23 @@ class Pix2PixModel(base_model.BaseModel):
             hdf5_file_write.close()
 
     def run_and_save_videos_prediction(self, input_, targets, save_path):
-        input_imgs = autograd.Variable(input_.cuda(), requires_grad=False)
+        input_imgs, targets_ = self.prep_input_target(input_, targets)
+        input_imgs = autograd.Variable(input_imgs, requires_grad=False)
 
         human_mask = 1.0 - autograd.Variable(
-            targets['env_mask'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['env_mask'], requires_grad=False).unsqueeze(1)
         input_log_depth = autograd.Variable(
-            targets['input_log_depth'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['input_log_depth'], requires_grad=False).unsqueeze(1)
         input_confidence = autograd.Variable(
-            targets['input_confidence'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['input_confidence'], requires_grad=False).unsqueeze(1)
         keypoints_img = autograd.Variable(
-            targets['keypoints_img'].cuda(), requires_grad=False).unsqueeze(1)
+            targets_['keypoints_img'], requires_grad=False).unsqueeze(1)
 
-        mvs_depth = autograd.Variable(targets['mvs_depth'].cuda(), requires_grad=False)
+        mvs_depth = autograd.Variable(targets_['mvs_depth'], requires_grad=False)
         input_depth = autograd.Variable(
-            targets['input_depth'].cuda(), requires_grad=False)
+            targets_['input_depth'], requires_grad=False)
 
-        full_flow = targets['full_flow']
+        full_flow = targets_['full_flow']
 
         if self.num_input == 7:
             stack_inputs = torch.cat((input_imgs, human_mask, keypoints_img,
@@ -610,9 +627,40 @@ class Pix2PixModel(base_model.BaseModel):
 
             hdf5_file_write.close()
 
+    def run_PLARR(self, input_):
+        assert (self.num_input == 3)
+        input_imgs = autograd.Variable(input_.cuda(), requires_grad=False) if torch.cuda.is_available() else \
+            autograd.Variable(input_, requires_grad=False)
+
+        stack_inputs = input_imgs.unsqueeze(0)
+
+        prediction_d, pred_confidence = self.netG.forward(stack_inputs)
+        pred_log_d = prediction_d.squeeze(1)
+        pred_d = torch.exp(pred_log_d)
+
+        pred_d_ref = pred_d.data[0, :, :].cpu().numpy()
+
+        disparity = 1. / pred_d_ref
+        disparity = disparity / np.max(disparity)
+        disparity = np.tile(np.expand_dims(disparity, axis=-1), (1, 1, 3))
+        saved_imgs = disparity
+
+        # Saving colormapped depth image
+        disp_resized_np = saved_imgs
+        vmax = np.percentile(disp_resized_np, 95)
+        normalizer = mpl.colors.Normalize(vmin=disp_resized_np.min(), vmax=vmax)
+        mapper = mpl.cm.ScalarMappable(norm=normalizer, cmap='magma')
+        colormapped_im = (mapper.to_rgba(disp_resized_np)[:, :, :3] * 255).astype(
+            np.uint8)
+
+        disp_img = Image.fromarray(colormapped_im)
+
+        return saved_imgs, disp_img
+
     def run_and_save_DAVIS(self, input_, targets, save_path):
         assert (self.num_input == 3)
-        input_imgs = autograd.Variable(input_.cuda(), requires_grad=False)
+        input_imgs = autograd.Variable(input_.cuda(), requires_grad=False) if torch.cuda.is_available() else \
+            autograd.Variable(input_, requires_grad=False)
 
         stack_inputs = input_imgs
 
@@ -641,7 +689,7 @@ class Pix2PixModel(base_model.BaseModel):
             disparity = 1. / pred_d_ref
             disparity = disparity / np.max(disparity)
             disparity = np.tile(np.expand_dims(disparity, axis=-1), (1, 1, 3))
-            saved_imgs = np.concatenate((saved_img, disparity), axis=1)
+            saved_imgs = disparity
             saved_imgs = (saved_imgs*255).astype(np.uint8)
 
             imsave(output_path, saved_imgs)
