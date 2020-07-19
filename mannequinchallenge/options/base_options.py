@@ -79,6 +79,7 @@ class BaseOptions():
         self.parser.add_argument('--depth_merger', default='mean', type=str, help='It can be mean or median')
         self.parser.add_argument('--inference', default='monodepth', choices=['monodepth', 'mannequin'], type=str,
                             help='It can be monodepth or mannequin')
+        self.parser.add_argument('--given_K', action='store_true', help='If intrinsics matrix (K) is given')
         self.initialized = True
 
     def parse(self):
