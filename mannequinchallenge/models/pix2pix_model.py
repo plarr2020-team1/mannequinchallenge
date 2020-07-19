@@ -17,13 +17,11 @@ import torch
 import torch.nn as nn
 import torch.autograd as autograd
 import os
-from models import base_model
-from models import networks
+from mannequinchallenge.models import base_model, networks, hourglass
 import sys
 import h5py
 import os.path
 from skimage.io import imsave
-from models import hourglass
 from PIL import Image
 import matplotlib as mpl
 
@@ -653,9 +651,9 @@ class Pix2PixModel(base_model.BaseModel):
         colormapped_im = (mapper.to_rgba(disp_resized_np)[:, :, :3] * 255).astype(
             np.uint8)
 
-        disp_img = Image.fromarray(colormapped_im)
+        disp_img = Image.fromarray(colormapped_im).convert("L")
 
-        return saved_imgs, disp_img
+        return disp_img
 
     def run_and_save_DAVIS(self, input_, targets, save_path):
         assert (self.num_input == 3)

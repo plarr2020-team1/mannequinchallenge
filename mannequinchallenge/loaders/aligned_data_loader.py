@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import torch.utils.data
-from loaders import image_folder
+from mannequinchallenge.loaders import image_folder
 
 class PLARRDataLoader():
     def __init__(self, img, _batch_size):

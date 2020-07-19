@@ -1,9 +1,10 @@
 import torch
+import numpy as np
 from mannequinchallenge.options.train_options import TrainOptions
 from mannequinchallenge.loaders import aligned_data_loader
 from mannequinchallenge.models import pix2pix_model
 
-def inter_depth(img):
+def infer_depth(img):
     BATCH_SIZE = 1
 
     opt = TrainOptions().parse()  # set CUDA_VISIBLE_DEVICES before import torch
@@ -30,4 +31,7 @@ def inter_depth(img):
     for i, data in enumerate(video_dataset):
         print(i)
         stacked_img = data[0]
-        return model.run_PLARR(stacked_img)
+        disp_img =  model.run_PLARR(stacked_img)
+        disp_img = disp_img.resize(img.size)
+        disp_array = np.array(disp_img)
+        return disp_array, disp_img

@@ -14,7 +14,7 @@
 
 import argparse
 import os
-from util import util
+from mannequinchallenge.util import util
 
 
 class BaseOptions():
@@ -24,7 +24,7 @@ class BaseOptions():
 
     def initialize(self):
         self.parser.add_argument(
-            '--input', type=str, required=True, 
+            '--input', type=str, default='single_view',
             choices=['single_view', 'two_view', 'two_view_k'],
             help='type of input. One of "single_view", "two_view" (no human keypoints),'
             '"two_view_k" (with human keypoints)')
@@ -60,7 +60,7 @@ class BaseOptions():
         self.parser.add_argument(
             '--nThreads', default=2, type=int, help='# threads for loading data')
         self.parser.add_argument('--checkpoints_dir', type=str,
-                                 default='./checkpoints/', help='models are saved here')
+                                 default='./monoculardepth/mannequinchallenge/checkpoints/', help='models are saved here')
         self.parser.add_argument('--norm', type=str, default='instance',
                                  help='instance normalization or batch normalization')
         self.parser.add_argument('--serial_batches', action='store_true',
@@ -75,7 +75,10 @@ class BaseOptions():
             '--use_dropout', action='store_true', help='use dropout for the generator')
         self.parser.add_argument('--max_dataset_size', type=int, default=float(
             "inf"), help='Maximum number of samples allowed per dataset. If the dataset directory contains more than max_dataset_size, only a subset is loaded.')
-
+        self.parser.add_argument('--video_source', default=0, type=str, help='It can be a video path or webcam id.')
+        self.parser.add_argument('--depth_merger', default='mean', type=str, help='It can be mean or median')
+        self.parser.add_argument('--inference', default='monodepth', choices=['monodepth', 'mannequin'], type=str,
+                            help='It can be monodepth or mannequin')
         self.initialized = True
 
     def parse(self):
